@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>招聘舆情分析台</title>
+<title>招聘舆情看板</title>
 <style>
-/* 布局：左侧录入与待分析队列，右侧分析结果；窄屏堆叠为单列 */
+/* 布局：口令门 → 看板（统计块 + 筛选 + 卡片流）；自助分析为第二个标签页 */
 :root{
   --bg:#f3f5f6; --surface:#ffffff; --ink:#16242b; --muted:#5d6f78; --line:#d5dde1;
   --accent:#0d6e6a; --accent-ink:#ffffff; --accent-soft:#e0f0ee;
@@ -31,169 +31,344 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.6}
-.wrap{max-width:1180px;margin:0 auto;padding:24px 16px 48px;display:flex;flex-direction:column;gap:20px}
-header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:14px}
-h1{font-family:var(--font-display);font-size:26px;margin:0;line-height:1.25;text-wrap:balance}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 16px 48px;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:12px}
+h1{font-family:var(--font-display);font-size:25px;margin:0;line-height:1.25;text-wrap:balance}
 .sub{color:var(--muted);font-size:13px;margin:4px 0 0}
-.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
-.legend span{display:inline-flex;align-items:center;gap:6px}
-.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
-.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:20px;align-items:start}
-@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:14px}
 h2{font-family:var(--font-display);font-size:17px;margin:0}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width:480px){.row{grid-template-columns:1fr}}
-label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
-input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%}
-textarea{min-height:120px;resize:vertical}
-input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-button{font:inherit;cursor:pointer;border-radius:4px;padding:8px 16px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:600}
+.tabs{display:flex;gap:8px}
+.tabs button{border:1px solid var(--line);background:var(--surface);color:var(--muted);font-weight:400}
+.tabs button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+button{font:inherit;cursor:pointer;border-radius:4px;padding:7px 14px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:600}
 button.primary{background:var(--accent);color:var(--accent-ink)}
 button.ghost{border-color:var(--line);color:var(--muted);font-weight:400;padding:4px 10px;font-size:13px}
 button:disabled{opacity:.5;cursor:not-allowed}
-.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.queue{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
-.queue li{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:4px;padding:10px 12px;display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
-.queue .meta{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-.queue .txt{font-size:14px;overflow-wrap:anywhere}
-.tag{display:inline-block;font-size:11px;background:var(--accent-soft);color:var(--accent);border-radius:3px;padding:0 6px;margin-left:6px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%}
+textarea{min-height:110px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.meta-line{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;color:var(--muted);font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+.tile .n{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.tile .t{font-size:12px;color:var(--muted)}
+.tile.warn .n{color:var(--p1)}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.fcard{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--p3);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.fcard.s-P2{border-left-color:var(--p2)}
+.fcard .top{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fcard .date{margin-left:auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.fcard .sum{margin:0;font-size:14.5px}
+.fcard .bot{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);align-items:center}
+.badge{display:inline-block;font-size:11.5px;border-radius:3px;padding:0 7px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.badge.sev{font-weight:700;color:var(--accent-ink)}
+.badge.sev-P2{background:var(--p2);border-color:var(--p2);color:#fff}
+.badge.sev-P3{background:var(--p3);border-color:var(--p3);color:#fff}
+.badge.sen-bad{color:var(--p0);border-color:var(--p0)}
+.badge.sen-mix{color:var(--p1);border-color:var(--p1)}
+.badge.sen-good{color:var(--p3);border-color:var(--p3)}
 .empty{color:var(--muted);font-size:14px;margin:0}
 .notice{border:1px solid var(--line);border-left:4px solid var(--p1);border-radius:4px;padding:10px 12px;font-size:14px;margin:0}
 .notice[hidden]{display:none}
-#out{font-family:var(--font-mono);font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:14px;min-height:260px;max-height:70vh;overflow:auto;margin:0}
-.foot{color:var(--muted);font-size:12px;margin:0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:480px){.row{grid-template-columns:1fr}}
+.grid2{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:18px;align-items:start}
+@media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.queue{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.queue li{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:4px;padding:10px 12px;display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.queue .meta{font-size:12px;color:var(--muted)}
+.queue .txt{font-size:14px;overflow-wrap:anywhere}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+#out{font-family:var(--font-mono);font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:14px;min-height:220px;max-height:70vh;overflow:auto;margin:0}
+.foot{color:var(--muted);font-size:12px;margin:0;line-height:1.7}
+a{color:var(--accent)}
+#gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+#gate .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:28px;max-width:360px;width:100%;display:flex;flex-direction:column;gap:14px}
+[hidden]{display:none !important}
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<div id="gate">
+  <form class="card" id="gate-form">
+    <h1 style="font-size:21px">招聘舆情看板</h1>
+    <p class="sub" style="margin:0">本页面仅限受邀人员使用。请输入管理员提供的访问口令。</p>
+    <label for="gate-pass">访问口令
+      <input id="gate-pass" type="password" autocomplete="off">
+    </label>
+    <p class="notice" id="gate-msg" hidden></p>
+    <button class="primary" type="submit" id="gate-btn">进入</button>
+  </form>
+</div>
+
+<div class="wrap" id="app" hidden>
   <header>
     <div>
-      <h1>招聘舆情分析台</h1>
-      <p class="sub">粘贴公开帖子，生成分类、分级与推送卡片</p>
+      <h1>招聘舆情看板</h1>
+      <p class="sub">公开社交平台上与招聘、雇主品牌、员工体验相关的最新声音 · 每日自动更新</p>
     </div>
-    <div class="legend" aria-label="严重度说明">
-      <span><i style="background:var(--p0)"></i>P0 紧急，立即复核</span>
-      <span><i style="background:var(--p1)"></i>P1 高，4 小时内</span>
-      <span><i style="background:var(--p2)"></i>P2 中，进日报</span>
-      <span><i style="background:var(--p3)"></i>P3 低/正向，进周报</span>
+    <div class="tabs">
+      <button type="button" id="tab-dash" class="on">舆情看板</button>
+      <button type="button" id="tab-an">自助分析</button>
     </div>
   </header>
 
-  <p class="notice" id="unavailable" hidden>无法连接服务器，请稍后重试或联系管理员。</p>
-
-  <div class="grid">
-    <section class="panel" aria-labelledby="h-in">
-      <h2 id="h-in">1. 录入帖子</h2>
-      <form id="form">
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <div class="row">
-            <label for="f-platform">平台
-              <select id="f-platform">
-                <option>脉脉</option><option>小红书</option><option>微博</option><option>知乎</option><option>B站</option><option>抖音</option><option>贴吧</option><option>看准网</option><option>OfferShow</option><option>招聘平台评价区</option><option>公开社群</option><option>其他</option>
-              </select>
-            </label>
-            <label for="f-time">发布时间
-              <input id="f-time" type="text" placeholder="例如 2026-11-14 21:30">
-            </label>
-          </div>
-          <label for="f-url">原文链接
-            <input id="f-url" type="text" placeholder="https://">
-          </label>
-          <label for="f-metrics">互动数据（可选）
-            <input id="f-metrics" type="text" placeholder="例如 点赞320，评论85，转发12">
-          </label>
-          <label for="f-text">帖子原文
-            <textarea id="f-text" placeholder="把帖子原文粘贴到这里"></textarea>
-          </label>
-          <label for="f-notes">备注（可选）
-            <input id="f-notes" type="text" placeholder="作者公开昵称/简介、其他说明">
-          </label>
-          <div class="actions">
-            <button type="submit">加入待分析列表</button>
-          </div>
-        </div>
-      </form>
-
-      <h2 id="h-q">2. 待分析列表（<span id="count">0</span> 条）</h2>
-      <ul class="queue" id="queue"></ul>
-      <p class="empty" id="empty" hidden>列表为空。先在上方录入至少一条帖子。</p>
-      <label for="f-pass">访问口令
-        <input id="f-pass" type="password" autocomplete="off" placeholder="请输入管理员提供的访问口令">
-      </label>
-      <div class="actions">
-        <button class="primary" id="run" type="button">开始分析</button>
-        <button class="ghost" id="clear" type="button">清空列表</button>
+  <section id="sec-dash">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="meta-line">
+        <span id="updated">数据加载中…</span>
+        <button class="ghost" type="button" id="refresh">刷新</button>
+        <span id="note" style="flex-basis:100%"></span>
       </div>
-    </section>
+      <div class="tiles">
+        <div class="tile"><div class="n" id="t-total">–</div><div class="t">累计收录（P2/P3）</div></div>
+        <div class="tile"><div class="n" id="t-week">–</div><div class="t">近 7 天新增</div></div>
+        <div class="tile"><div class="n" id="t-neg">–</div><div class="t">差评与混合占比</div></div>
+        <div class="tile warn"><div class="n" id="t-pending">–</div><div class="t">高优先级，内部复核中</div></div>
+      </div>
+      <div class="filters">
+        <label>平台<select id="f-plat"><option value="">全部</option></select></label>
+        <label>严重度<select id="f-sev"><option value="">全部</option><option>P2</option><option>P3</option></select></label>
+        <label>情感<select id="f-sent"><option value="">全部</option><option>差评</option><option>混合</option><option>中性</option><option>好评</option></select></label>
+        <label>人群<select id="f-aud"><option value="">全部</option></select></label>
+        <label>关键词<input id="f-kw" type="text" placeholder="筛选摘要内容"></label>
+      </div>
+      <ul class="feed" id="feed"></ul>
+      <p class="empty" id="feed-empty" hidden>暂无数据。采集任务每个工作日上午运行，运行后这里会自动出现最新内容。</p>
+      <p class="foot">严重度说明：P2 = 一般负面，传播有限；P3 = 中性、好评或雇主品牌亮点。P0/P1 高优先级内容涉及未核实的敏感线索，仅显示数量，由内部团队复核。<br>
+      数据来源：每日联网搜索（微博、知乎、B站、贴吧、新闻媒体、投诉平台等）与已授权浏览器采集（小红书等），另含人工提交。所有内容均为公开帖子的摘要，属未核实线索，仅供参考；不展示发帖人昵称等个人信息。</p>
+    </div>
+  </section>
 
-    <section class="panel" aria-labelledby="h-out">
-      <div class="actions" style="justify-content:space-between">
-        <h2 id="h-out">3. 分析结果</h2>
+  <section id="sec-an" hidden>
+    <div class="grid2">
+      <div class="panel">
+        <h2>1. 录入帖子</h2>
+        <form id="form">
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="row">
+              <label for="f2-platform">平台
+                <select id="f2-platform">
+                  <option>脉脉</option><option>小红书</option><option>微博</option><option>知乎</option><option>B站</option><option>抖音</option><option>贴吧</option><option>看准网</option><option>OfferShow</option><option>招聘平台评价区</option><option>公开社群</option><option>其他</option>
+                </select>
+              </label>
+              <label for="f2-time">发布时间
+                <input id="f2-time" type="text" placeholder="例如 2026-11-14 21:30">
+              </label>
+            </div>
+            <label for="f2-url">原文链接
+              <input id="f2-url" type="text" placeholder="https://">
+            </label>
+            <label for="f2-metrics">互动数据（可选）
+              <input id="f2-metrics" type="text" placeholder="例如 点赞320，评论85，转发12">
+            </label>
+            <label for="f2-text">帖子原文
+              <textarea id="f2-text" placeholder="把帖子原文粘贴到这里"></textarea>
+            </label>
+            <label for="f2-notes">备注（可选）
+              <input id="f2-notes" type="text" placeholder="作者公开昵称/简介、其他说明">
+            </label>
+            <div class="actions">
+              <button type="submit">加入待分析列表</button>
+            </div>
+          </div>
+        </form>
+        <h2>2. 待分析列表（<span id="count">0</span> 条）</h2>
+        <ul class="queue" id="queue"></ul>
+        <p class="empty" id="empty" hidden>列表为空。先在上方录入至少一条帖子。</p>
         <div class="actions">
-          <button class="ghost" id="stop" type="button" hidden>停止</button>
-          <button class="ghost" id="copy" type="button" disabled>复制结果</button>
+          <button class="primary" id="run" type="button">开始分析</button>
+          <button class="ghost" id="clear" type="button">清空列表</button>
         </div>
       </div>
-      <p class="notice" id="msg" hidden></p>
-      <pre id="out" aria-live="polite">点击“开始分析”后，这里会依次显示每条帖子的结构化 JSON、推送卡片和批次摘要。</pre>
-      <p class="foot">结果由 Claude 生成，内容均为未核实的线索，P0/P1 请人工复核后再推送。本工具只做监测与分析，不会自动回复或联系当事人。</p>
-    </section>
-  </div>
+      <div class="panel">
+        <div class="actions" style="justify-content:space-between">
+          <h2>3. 分析结果</h2>
+          <div class="actions">
+            <button class="ghost" id="stop" type="button" hidden>停止</button>
+            <button class="ghost" id="copy" type="button" disabled>复制结果</button>
+          </div>
+        </div>
+        <p class="notice" id="msg" hidden></p>
+        <pre id="out" aria-live="polite">点击“开始分析”后，这里会依次显示每条帖子的结构化 JSON、推送卡片和批次摘要。</pre>
+        <p class="foot">结果由 Claude 生成，均为未核实线索，P0/P1 请先联系内部团队复核。本工具只做监测与分析，不会自动回复或联系当事人。</p>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script>
 (function(){
-  var KEY = "recruit-sentiment-queue-v1";
   var $ = function(id){ return document.getElementById(id); };
-  var posts = [
-    {platform:"小红书", url:"https://example.com/demo-1", publish_time:"2026-11-14 21:30", metrics:"点赞320，评论85，收藏40",
-     text:"某公司校招二面结束三周了，HR一直说在流程中，问了两次都没有明确答复，同批面试的同学也都没消息。", notes:"虚构示例，仅用于演示", demo:true},
-    {platform:"脉脉", url:"https://example.com/demo-2", publish_time:"2026-11-13 10:05", metrics:"点赞12，评论3",
-     text:"入职某公司半年，导师带得很细，技术氛围不错，食堂也好吃，就是项目节奏比较紧。", notes:"虚构示例，仅用于演示", demo:true}
-  ];
+  var PASS = "";
+  try{ PASS = sessionStorage.getItem("sd-pass") || ""; }catch(e){}
+
+  /* ---------- 口令门 ---------- */
+  function enter(){
+    $("gate").hidden = true; $("app").hidden = false;
+    loadFeed(); renderQueue();
+  }
+  function tryAuth(p, silent){
+    return fetch("/api/auth", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({password:p})
+    }).then(function(res){
+      if(res.ok){ PASS = p; try{ sessionStorage.setItem("sd-pass", p); }catch(e){} enter(); return true; }
+      if(!silent){ gateMsg(res.status===401 ? "口令不正确，请重试。" : ("服务器返回 " + res.status + "，请稍后重试。")); }
+      return false;
+    }).catch(function(){ if(!silent){ gateMsg("无法连接服务器。免费服务器休眠后首次访问约需 1 分钟，请稍候再试。"); } return false; });
+  }
+  function gateMsg(t){ $("gate-msg").textContent = t; $("gate-msg").hidden = false; }
+  $("gate-form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var p = $("gate-pass").value;
+    if(!p){ gateMsg("请输入口令。"); return; }
+    $("gate-btn").disabled = true;
+    tryAuth(p, false).then(function(){ $("gate-btn").disabled = false; });
+  });
+  if(PASS){ tryAuth(PASS, true); }
+
+  /* ---------- 标签页 ---------- */
+  function showTab(dash){
+    $("sec-dash").hidden = !dash; $("sec-an").hidden = dash;
+    $("tab-dash").className = dash ? "on" : ""; $("tab-an").className = dash ? "" : "on";
+  }
+  $("tab-dash").addEventListener("click", function(){ showTab(true); });
+  $("tab-an").addEventListener("click", function(){ showTab(false); });
+
+  /* ---------- 看板 ---------- */
+  var FEED = {items:[], pending_review:0, updated_at:"", note:""};
+  function loadFeed(){
+    $("updated").textContent = "数据加载中…";
+    fetch("/api/feed", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({password:PASS})
+    }).then(function(res){
+      if(!res.ok){ throw new Error("HTTP " + res.status); }
+      return res.json();
+    }).then(function(d){
+      FEED = d || FEED;
+      buildOptions(); renderStats(); renderFeed();
+      $("updated").textContent = FEED.updated_at ? ("数据更新于 " + FEED.updated_at + " · 每 5 分钟自动刷新") : "尚无数据推送 · 每 5 分钟自动刷新";
+      $("note").textContent = FEED.note || "";
+    }).catch(function(){
+      $("updated").textContent = "数据加载失败，稍后会自动重试。";
+    });
+  }
+  function buildOptions(){
+    fillSelect("f-plat", distinct("platform"));
+    fillSelect("f-aud", distinct("audience"));
+  }
+  function distinct(key){
+    var seen = {}, out = [];
+    (FEED.items||[]).forEach(function(it){
+      var v = (it[key]||"").trim();
+      if(v && !seen[v]){ seen[v] = 1; out.push(v); }
+    });
+    return out;
+  }
+  function fillSelect(id, values){
+    var sel = $(id), cur = sel.value;
+    while(sel.options.length > 1){ sel.remove(1); }
+    values.forEach(function(v){ var o = document.createElement("option"); o.textContent = v; sel.add(o); });
+    sel.value = cur;
+  }
+  function renderStats(){
+    var items = FEED.items || [];
+    $("t-total").textContent = items.length;
+    var cutoff = new Date(Date.now() - 6*86400000).toISOString().slice(0,10);
+    var week = items.filter(function(it){ return (it.date||"") >= cutoff; }).length;
+    $("t-week").textContent = week;
+    var neg = items.filter(function(it){ return it.sentiment === "差评" || it.sentiment === "混合"; }).length;
+    $("t-neg").textContent = items.length ? Math.round(100*neg/items.length) + "%" : "–";
+    $("t-pending").textContent = FEED.pending_review || 0;
+  }
+  function renderFeed(){
+    var ul = $("feed"); ul.textContent = "";
+    var plat = $("f-plat").value, sev = $("f-sev").value, sent = $("f-sent").value,
+        aud = $("f-aud").value, kw = $("f-kw").value.trim();
+    var items = (FEED.items||[]).filter(function(it){
+      if(plat && it.platform !== plat) return false;
+      if(sev && it.severity !== sev) return false;
+      if(sent && it.sentiment !== sent) return false;
+      if(aud && it.audience !== aud) return false;
+      if(kw && ((it.summary||"") + (it.topics||"")).indexOf(kw) < 0) return false;
+      return true;
+    });
+    items.sort(function(a,b){ return (b.date||"") < (a.date||"") ? -1 : 1; });
+    items.forEach(function(it){
+      var li = document.createElement("li");
+      li.className = "fcard s-" + (it.severity||"P3");
+      var top = document.createElement("div"); top.className = "top";
+      top.appendChild(badge(it.severity||"P3", "badge sev sev-" + (it.severity||"P3")));
+      if(it.sentiment){
+        var cls = it.sentiment === "差评" ? "sen-bad" : it.sentiment === "混合" ? "sen-mix" : it.sentiment === "好评" ? "sen-good" : "";
+        top.appendChild(badge(it.sentiment, "badge " + cls));
+      }
+      if(it.platform) top.appendChild(badge(it.platform, "badge"));
+      if(it.audience) top.appendChild(badge(it.audience, "badge"));
+      var dt = document.createElement("span"); dt.className = "date"; dt.textContent = it.date || ""; top.appendChild(dt);
+      li.appendChild(top);
+      var p = document.createElement("p"); p.className = "sum"; p.textContent = it.summary || ""; li.appendChild(p);
+      var bot = document.createElement("div"); bot.className = "bot";
+      if(it.topics){ bot.appendChild(span("主题：" + it.topics)); }
+      if(it.risk){ bot.appendChild(span("传播风险：" + it.risk)); }
+      if(it.url){
+        var a = document.createElement("a"); a.href = it.url; a.target = "_blank"; a.rel = "noreferrer noopener";
+        a.textContent = "查看原文"; bot.appendChild(a);
+      }
+      li.appendChild(bot);
+      ul.appendChild(li);
+    });
+    $("feed-empty").hidden = items.length > 0;
+  }
+  function badge(text, cls){ var s = document.createElement("span"); s.className = cls; s.textContent = text; return s; }
+  function span(text){ var s = document.createElement("span"); s.textContent = text; return s; }
+  ["f-plat","f-sev","f-sent","f-aud"].forEach(function(id){ $(id).addEventListener("change", renderFeed); });
+  $("f-kw").addEventListener("input", renderFeed);
+  $("refresh").addEventListener("click", loadFeed);
+  setInterval(function(){ if(!$("app").hidden) loadFeed(); }, 300000);
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden && !$("app").hidden) loadFeed();
+  });
+
+  /* ---------- 自助分析 ---------- */
+  var KEY = "recruit-sentiment-queue-v1";
+  var posts = [];
   try{ var saved = JSON.parse(localStorage.getItem(KEY)); if(Array.isArray(saved)) posts = saved; }catch(e){}
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(posts)); }catch(e){} }
-
-  function render(){
+  function renderQueue(){
     var ul = $("queue"); ul.textContent = "";
     posts.forEach(function(p, i){
       var li = document.createElement("li");
       var body = document.createElement("div");
       var meta = document.createElement("div"); meta.className = "meta";
       meta.textContent = (i+1) + ". " + (p.platform||"") + (p.publish_time ? " · " + p.publish_time : "");
-      if(p.demo){ var t = document.createElement("span"); t.className = "tag"; t.textContent = "示例"; meta.appendChild(t); }
       var txt = document.createElement("div"); txt.className = "txt";
       txt.textContent = p.text.length > 90 ? p.text.slice(0,90) + "…" : p.text;
       body.appendChild(meta); body.appendChild(txt);
       var del = document.createElement("button"); del.type = "button"; del.className = "ghost"; del.textContent = "删除";
-      del.setAttribute("aria-label", "删除第" + (i+1) + "条");
-      del.addEventListener("click", function(){ posts.splice(i,1); save(); render(); });
+      del.addEventListener("click", function(){ posts.splice(i,1); save(); renderQueue(); });
       li.appendChild(body); li.appendChild(del); ul.appendChild(li);
     });
     $("count").textContent = posts.length;
     $("empty").hidden = posts.length > 0;
   }
-
   $("form").addEventListener("submit", function(e){
     e.preventDefault();
-    var text = $("f-text").value.trim();
-    if(!text){ showMsg("请先粘贴帖子原文。"); $("f-text").focus(); return; }
-    posts.push({platform:$("f-platform").value, url:$("f-url").value.trim(), publish_time:$("f-time").value.trim(),
-      metrics:$("f-metrics").value.trim(), text:text, notes:$("f-notes").value.trim()});
-    ["f-url","f-time","f-metrics","f-text","f-notes"].forEach(function(id){ $(id).value = ""; });
-    hideMsg(); save(); render();
+    var text = $("f2-text").value.trim();
+    if(!text){ showMsg("请先粘贴帖子原文。"); $("f2-text").focus(); return; }
+    posts.push({platform:$("f2-platform").value, url:$("f2-url").value.trim(), publish_time:$("f2-time").value.trim(),
+      metrics:$("f2-metrics").value.trim(), text:text, notes:$("f2-notes").value.trim()});
+    ["f2-url","f2-time","f2-metrics","f2-text","f2-notes"].forEach(function(id){ $(id).value = ""; });
+    hideMsg(); save(); renderQueue();
   });
-  $("clear").addEventListener("click", function(){ posts = []; save(); render(); });
-
+  $("clear").addEventListener("click", function(){ posts = []; save(); renderQueue(); });
   function showMsg(t){ $("msg").textContent = t; $("msg").hidden = false; }
   function hideMsg(){ $("msg").hidden = true; }
 
   var controller = null, lastText = "";
-
   $("run").addEventListener("click", function(){
-    var pass = $("f-pass").value;
-    if(!pass){ showMsg("请先输入访问口令。"); $("f-pass").focus(); return; }
     if(!posts.length){ showMsg("列表为空。请先录入至少一条帖子。"); return; }
     hideMsg();
     controller = new AbortController();
@@ -201,7 +376,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     $("out").textContent = "正在分析 " + posts.length + " 条帖子，请稍候…"; lastText = "";
     fetch("/api/analyze", {
       method: "POST", headers: {"Content-Type": "application/json"}, signal: controller.signal,
-      body: JSON.stringify({password: pass, posts: posts.map(function(p){
+      body: JSON.stringify({password: PASS, posts: posts.map(function(p){
         return {platform:p.platform, url:p.url, publish_time:p.publish_time, metrics:p.metrics, text:p.text, notes:p.notes};
       })})
     }).then(function(res){
@@ -218,7 +393,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
       return pump();
     }).catch(function(err){
       if(controller.signal.aborted) showMsg("已停止。");
-      else { showMsg("分析没有完成：" + ((err && err.message) || "网络错误") + ""); if(!lastText) $("out").textContent = ""; }
+      else { showMsg("分析没有完成：" + ((err && err.message) || "网络错误")); if(!lastText) $("out").textContent = ""; }
     }).then(function(){
       $("run").disabled = false; $("stop").hidden = true; $("copy").disabled = !lastText;
     });
@@ -230,8 +405,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
       function(){ showMsg("无法自动复制。请手动选中结果后复制。"); })
       .then(function(){ setTimeout(function(){ b.textContent = "复制结果"; }, 1500); });
   });
-
-  render();
 })();
 </script>
 </body>
