@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>招聘舆情分析台</title>
+<style>
+/* 布局：左侧录入与待分析队列，右侧分析结果；窄屏堆叠为单列 */
+:root{
+  --bg:#f3f5f6; --surface:#ffffff; --ink:#16242b; --muted:#5d6f78; --line:#d5dde1;
+  --accent:#0d6e6a; --accent-ink:#ffffff; --accent-soft:#e0f0ee;
+  --p0:#b3261e; --p1:#c2600a; --p2:#8a7300; --p3:#2e7d4f;
+  --font-display:"Noto Serif SC","Songti SC","SimSun",serif;
+  --font-body:-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC","Helvetica Neue",Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,"PingFang SC","Microsoft YaHei",monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101a1e; --surface:#182429; --ink:#e6eef0; --muted:#94a7af; --line:#2c3c43;
+    --accent:#4fbfb8; --accent-ink:#06211f; --accent-soft:#16373a;
+    --p0:#f08a80; --p1:#f0a35c; --p2:#d9c14a; --p3:#73c795;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101a1e; --surface:#182429; --ink:#e6eef0; --muted:#94a7af; --line:#2c3c43;
+  --accent:#4fbfb8; --accent-ink:#06211f; --accent-soft:#16373a;
+  --p0:#f08a80; --p1:#f0a35c; --p2:#d9c14a; --p3:#73c795;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.6}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 16px 48px;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:14px}
+h1{font-family:var(--font-display);font-size:26px;margin:0;line-height:1.25;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:4px 0 0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:14px}
+h2{font-family:var(--font-display);font-size:17px;margin:0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:480px){.row{grid-template-columns:1fr}}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%}
+textarea{min-height:120px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;cursor:pointer;border-radius:4px;padding:8px 16px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-weight:600}
+button.primary{background:var(--accent);color:var(--accent-ink)}
+button.ghost{border-color:var(--line);color:var(--muted);font-weight:400;padding:4px 10px;font-size:13px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.queue{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.queue li{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:4px;padding:10px 12px;display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.queue .meta{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.queue .txt{font-size:14px;overflow-wrap:anywhere}
+.tag{display:inline-block;font-size:11px;background:var(--accent-soft);color:var(--accent);border-radius:3px;padding:0 6px;margin-left:6px}
+.empty{color:var(--muted);font-size:14px;margin:0}
+.notice{border:1px solid var(--line);border-left:4px solid var(--p1);border-radius:4px;padding:10px 12px;font-size:14px;margin:0}
+.notice[hidden]{display:none}
+#out{font-family:var(--font-mono);font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:14px;min-height:260px;max-height:70vh;overflow:auto;margin:0}
+.foot{color:var(--muted);font-size:12px;margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>招聘舆情分析台</h1>
+      <p class="sub">粘贴公开帖子，生成分类、分级与推送卡片</p>
+    </div>
+    <div class="legend" aria-label="严重度说明">
+      <span><i style="background:var(--p0)"></i>P0 紧急，立即复核</span>
+      <span><i style="background:var(--p1)"></i>P1 高，4 小时内</span>
+      <span><i style="background:var(--p2)"></i>P2 中，进日报</span>
+      <span><i style="background:var(--p3)"></i>P3 低/正向，进周报</span>
+    </div>
+  </header>
+
+  <p class="notice" id="unavailable" hidden>无法连接服务器，请稍后重试或联系管理员。</p>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="h-in">
+      <h2 id="h-in">1. 录入帖子</h2>
+      <form id="form">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="row">
+            <label for="f-platform">平台
+              <select id="f-platform">
+                <option>脉脉</option><option>小红书</option><option>微博</option><option>知乎</option><option>B站</option><option>抖音</option><option>贴吧</option><option>看准网</option><option>OfferShow</option><option>招聘平台评价区</option><option>公开社群</option><option>其他</option>
+              </select>
+            </label>
+            <label for="f-time">发布时间
+              <input id="f-time" type="text" placeholder="例如 2026-11-14 21:30">
+            </label>
+          </div>
+          <label for="f-url">原文链接
+            <input id="f-url" type="text" placeholder="https://">
+          </label>
+          <label for="f-metrics">互动数据（可选）
+            <input id="f-metrics" type="text" placeholder="例如 点赞320，评论85，转发12">
+          </label>
+          <label for="f-text">帖子原文
+            <textarea id="f-text" placeholder="把帖子原文粘贴到这里"></textarea>
+          </label>
+          <label for="f-notes">备注（可选）
+            <input id="f-notes" type="text" placeholder="作者公开昵称/简介、其他说明">
+          </label>
+          <div class="actions">
+            <button type="submit">加入待分析列表</button>
+          </div>
+        </div>
+      </form>
+
+      <h2 id="h-q">2. 待分析列表（<span id="count">0</span> 条）</h2>
+      <ul class="queue" id="queue"></ul>
+      <p class="empty" id="empty" hidden>列表为空。先在上方录入至少一条帖子。</p>
+      <label for="f-pass">访问口令
+        <input id="f-pass" type="password" autocomplete="off" placeholder="请输入管理员提供的访问口令">
+      </label>
+      <div class="actions">
+        <button class="primary" id="run" type="button">开始分析</button>
+        <button class="ghost" id="clear" type="button">清空列表</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-out">
+      <div class="actions" style="justify-content:space-between">
+        <h2 id="h-out">3. 分析结果</h2>
+        <div class="actions">
+          <button class="ghost" id="stop" type="button" hidden>停止</button>
+          <button class="ghost" id="copy" type="button" disabled>复制结果</button>
+        </div>
+      </div>
+      <p class="notice" id="msg" hidden></p>
+      <pre id="out" aria-live="polite">点击“开始分析”后，这里会依次显示每条帖子的结构化 JSON、推送卡片和批次摘要。</pre>
+      <p class="foot">结果由 Claude 生成，内容均为未核实的线索，P0/P1 请人工复核后再推送。本工具只做监测与分析，不会自动回复或联系当事人。</p>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY = "recruit-sentiment-queue-v1";
+  var $ = function(id){ return document.getElementById(id); };
+  var posts = [
+    {platform:"小红书", url:"https://example.com/demo-1", publish_time:"2026-11-14 21:30", metrics:"点赞320，评论85，收藏40",
+     text:"某公司校招二面结束三周了，HR一直说在流程中，问了两次都没有明确答复，同批面试的同学也都没消息。", notes:"虚构示例，仅用于演示", demo:true},
+    {platform:"脉脉", url:"https://example.com/demo-2", publish_time:"2026-11-13 10:05", metrics:"点赞12，评论3",
+     text:"入职某公司半年，导师带得很细，技术氛围不错，食堂也好吃，就是项目节奏比较紧。", notes:"虚构示例，仅用于演示", demo:true}
+  ];
+  try{ var saved = JSON.parse(localStorage.getItem(KEY)); if(Array.isArray(saved)) posts = saved; }catch(e){}
+  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(posts)); }catch(e){} }
+
+  function render(){
+    var ul = $("queue"); ul.textContent = "";
+    posts.forEach(function(p, i){
+      var li = document.createElement("li");
+      var body = document.createElement("div");
+      var meta = document.createElement("div"); meta.className = "meta";
+      meta.textContent = (i+1) + ". " + (p.platform||"") + (p.publish_time ? " · " + p.publish_time : "");
+      if(p.demo){ var t = document.createElement("span"); t.className = "tag"; t.textContent = "示例"; meta.appendChild(t); }
+      var txt = document.createElement("div"); txt.className = "txt";
+      txt.textContent = p.text.length > 90 ? p.text.slice(0,90) + "…" : p.text;
+      body.appendChild(meta); body.appendChild(txt);
+      var del = document.createElement("button"); del.type = "button"; del.className = "ghost"; del.textContent = "删除";
+      del.setAttribute("aria-label", "删除第" + (i+1) + "条");
+      del.addEventListener("click", function(){ posts.splice(i,1); save(); render(); });
+      li.appendChild(body); li.appendChild(del); ul.appendChild(li);
+    });
+    $("count").textContent = posts.length;
+    $("empty").hidden = posts.length > 0;
+  }
+
+  $("form").addEventListener("submit", function(e){
+    e.preventDefault();
+    var text = $("f-text").value.trim();
+    if(!text){ showMsg("请先粘贴帖子原文。"); $("f-text").focus(); return; }
+    posts.push({platform:$("f-platform").value, url:$("f-url").value.trim(), publish_time:$("f-time").value.trim(),
+      metrics:$("f-metrics").value.trim(), text:text, notes:$("f-notes").value.trim()});
+    ["f-url","f-time","f-metrics","f-text","f-notes"].forEach(function(id){ $(id).value = ""; });
+    hideMsg(); save(); render();
+  });
+  $("clear").addEventListener("click", function(){ posts = []; save(); render(); });
+
+  function showMsg(t){ $("msg").textContent = t; $("msg").hidden = false; }
+  function hideMsg(){ $("msg").hidden = true; }
+
+  var controller = null, lastText = "";
+
+  $("run").addEventListener("click", function(){
+    var pass = $("f-pass").value;
+    if(!pass){ showMsg("请先输入访问口令。"); $("f-pass").focus(); return; }
+    if(!posts.length){ showMsg("列表为空。请先录入至少一条帖子。"); return; }
+    hideMsg();
+    controller = new AbortController();
+    $("run").disabled = true; $("stop").hidden = false; $("copy").disabled = true;
+    $("out").textContent = "正在分析 " + posts.length + " 条帖子，请稍候…"; lastText = "";
+    fetch("/api/analyze", {
+      method: "POST", headers: {"Content-Type": "application/json"}, signal: controller.signal,
+      body: JSON.stringify({password: pass, posts: posts.map(function(p){
+        return {platform:p.platform, url:p.url, publish_time:p.publish_time, metrics:p.metrics, text:p.text, notes:p.notes};
+      })})
+    }).then(function(res){
+      if(!res.ok){ return res.text().then(function(t){ throw new Error(t || ("服务器返回 " + res.status)); }); }
+      var reader = res.body.getReader(), decoder = new TextDecoder("utf-8");
+      function pump(){
+        return reader.read().then(function(r){
+          if(r.done){ lastText += decoder.decode(); $("out").textContent = lastText; return; }
+          lastText += decoder.decode(r.value, {stream:true});
+          $("out").textContent = lastText;
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function(err){
+      if(controller.signal.aborted) showMsg("已停止。");
+      else { showMsg("分析没有完成：" + ((err && err.message) || "网络错误") + ""); if(!lastText) $("out").textContent = ""; }
+    }).then(function(){
+      $("run").disabled = false; $("stop").hidden = true; $("copy").disabled = !lastText;
+    });
+  });
+  $("stop").addEventListener("click", function(){ if(controller) controller.abort(); });
+  $("copy").addEventListener("click", function(){
+    var b = $("copy");
+    navigator.clipboard.writeText(lastText).then(function(){ b.textContent = "已复制"; },
+      function(){ showMsg("无法自动复制。请手动选中结果后复制。"); })
+      .then(function(){ setTimeout(function(){ b.textContent = "复制结果"; }, 1500); });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
